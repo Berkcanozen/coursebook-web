@@ -94,6 +94,7 @@ function Tabs() {
   ];
   return (
     <nav className="tabs">
+      <div className="brand">Coursebook</div>
       {items.map(([id, icon, label]) => (
         <button key={id} className={ui.tab === id && !ui.courseId ? 'on' : ''} onClick={() => ui.setTab(id)}>
           <span className="i">{icon}</span><span>{label}</span>

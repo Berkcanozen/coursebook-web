@@ -147,3 +147,163 @@ nav.tabs button.on{color:var(--accent);}
 .cal-cell.sel .num{color:#fff;}
 .cdot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;}
 .cal-cell.sel .cdot{box-shadow:0 0 0 1.5px #fff;}
+
+/* ===== Desktop / wide-screen responsive layout ===== */
+/* Sidebar label (only shown on desktop) */
+nav.tabs::before{ content:"Coursebook"; display:none; }
+
+@media (min-width: 768px){
+  body{ align-items:stretch; }
+  .app{
+    max-width:1200px;
+    width:100%;
+    height:100dvh;
+    display:grid;
+    grid-template-columns:248px minmax(0,1fr);
+    grid-template-rows:auto 1fr;
+    grid-template-areas:"sidebar header" "sidebar main";
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+  }
+  header.bar{ grid-area:header; justify-self:center; width:100%; max-width:820px; padding:26px 28px 14px; }
+  main{ grid-area:main; justify-self:center; width:100%; max-width:820px; padding:6px 28px 48px; }
+
+  /* bottom tab bar becomes a left sidebar */
+  nav.tabs{
+    grid-area:sidebar;
+    position:static;
+    flex-direction:column;
+    justify-content:flex-start;
+    align-items:stretch;
+    gap:4px;
+    border-top:none;
+    border-right:1px solid var(--line);
+    background:transparent;
+    backdrop-filter:none;
+    padding:24px 16px;
+  }
+  nav.tabs::before{
+    display:block;
+    font-family:var(--display);
+    font-weight:600;
+    font-size:21px;
+    color:var(--ink);
+    padding:4px 14px 20px;
+    letter-spacing:-.01em;
+  }
+  nav.tabs button{
+    flex:0 0 auto;
+    flex-direction:row;
+    justify-content:flex-start;
+    gap:13px;
+    padding:11px 14px;
+    border-radius:12px;
+    color:var(--muted);
+  }
+  nav.tabs button:hover{ background:var(--surface-2); }
+  nav.tabs button .i{ font-size:20px; }
+  nav.tabs button span{ font-size:14px; font-weight:600; }
+  nav.tabs button.on{ background:var(--accent-soft); color:var(--accent-ink); }
+
+  /* modals: centered dialog instead of bottom sheet */
+  .scrim{ align-items:center; }
+  .sheet{
+    max-width:460px;
+    border-radius:20px;
+    max-height:86vh;
+    animation:pop .18s ease;
+  }
+  .sheet .grab{ display:none; }
+}
+
+@keyframes pop{ from{ transform:scale(.97); opacity:.5 } to{ transform:scale(1); opacity:1 } }
+
+/* On very wide screens, two-column course cards for better use of space */
+@media (min-width: 1040px){
+  .summary{ max-width:520px; }
+}
+
+/* ===== course grid (multi-column on wider screens) ===== */
+.brand{display:none;}
+.course-grid{display:block;}
+
+/* ===== responsive: desktop / tablet layout ===== */
+@media (min-width: 768px){
+  body{align-items:center;}
+  .app{
+    max-width:1100px;
+    height:100dvh;
+    display:grid;
+    grid-template-columns:240px 1fr;
+    grid-template-rows:auto 1fr;
+    grid-template-areas:
+      "side header"
+      "side main";
+    box-shadow:0 0 80px rgba(43,37,32,.10);
+  }
+  /* sidebar from the bottom tab bar */
+  nav.tabs{
+    grid-area:side;
+    position:static;
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:flex-start;
+    gap:6px;
+    background:var(--surface-2);
+    border-top:none;
+    border-right:1px solid var(--line);
+    padding:26px 16px;
+    backdrop-filter:none;
+  }
+  .brand{
+    display:block;
+    font-family:var(--display);
+    font-weight:600;
+    font-size:22px;
+    letter-spacing:-.02em;
+    padding:4px 12px 22px;
+    color:var(--ink);
+  }
+  nav.tabs button{
+    flex:0 0 auto;
+    flex-direction:row;
+    gap:13px;
+    justify-content:flex-start;
+    padding:12px 14px;
+    border-radius:12px;
+  }
+  nav.tabs button .i{font-size:20px;}
+  nav.tabs button span{font-size:14.5px;}
+  nav.tabs button.on{background:var(--accent-soft);color:var(--accent-ink);}
+
+  header.bar{grid-area:header;padding:30px 44px 16px;}
+  header.bar h1{font-size:28px;}
+
+  main{grid-area:main;padding:10px 44px 48px;min-height:0;}
+
+  /* use the extra width */
+  .course-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(330px,1fr));
+    gap:12px;
+  }
+  .course-grid .card{margin-bottom:0;}
+  .summary{max-width:520px;}
+  .cal-grid, .filterbar, .pay-group, .ses, .meta, .hero, .ch-head, .fam-row, .chips, .empty{max-width:760px;}
+  .sechead{max-width:760px;}
+
+  /* centered modal instead of bottom sheet */
+  .scrim{align-items:center;}
+  .sheet{
+    max-width:460px;
+    border-radius:22px;
+    animation:pop .22s cubic-bezier(.2,.8,.2,1);
+    max-height:88dvh;
+  }
+  .sheet .grab{display:none;}
+  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+}
+
+@media (min-width: 768px){
+  /* the add-course button in the header still works; nothing to change */
+}

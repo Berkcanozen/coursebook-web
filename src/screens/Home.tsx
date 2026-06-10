@@ -55,7 +55,7 @@ export function Home({ state }: { state: FamilyState }) {
           <button className="btn primary sm" onClick={() => ui.openSheet(<CourseSheet childId={active.id} />)}>＋ Add course</button>
         </div>
       ) : (
-        active.courses.map((co) => {
+        <div className="course-grid">{active.courses.map((co) => {
           const st = courseStatus(co); const ls = latestSession(co);
           const tint = ICON_TINT[co.icon] || ICON_TINT.other;
           return (
@@ -71,7 +71,7 @@ export function Home({ state }: { state: FamilyState }) {
               </div>
             </button>
           );
-        })
+        })}</div>
       )}
     </>
   );
