@@ -10,3 +10,9 @@ export const ICON_TINT: Record<string, string> = {
 };
 export const CHILD_COLORS = ['#C85A38', '#3C7A57', '#3E6FA0', '#9A5BA6', '#B5781E', '#5B8FA0', '#B0476A', '#6B7A3C'];
 export const FEELABEL: Record<FeeType, string> = { session: 'per session', month: 'per month', term: 'per term' };
+
+export const CURRENCIES: { code: string; symbol: string; label: string }[] = [
+  { code: 'TRY', symbol: '₺', label: 'Turkish Lira (₺)' },
+  { code: 'USD', symbol: '$', label: 'US Dollar ($)' },
+  { code: 'EUR', symbol: '€', label: 'Euro (€)' },
+];

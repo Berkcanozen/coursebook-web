@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useAuth } from '../auth/auth';
-import { CHILD_COLORS } from '../lib/constants';
+import { CHILD_COLORS, CURRENCIES } from '../lib/constants';
 
 export function AuthScreen() {
   const { signIn } = useAuth();
@@ -9,7 +9,7 @@ export function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [family, setFamily] = useState('');
-  const [currency, setCurrency] = useState('€');
+  const [currency, setCurrency] = useState('₺');
   const [firstChild, setFirstChild] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -50,7 +50,9 @@ export function AuthScreen() {
         {reg && (
           <div className="row2">
             <div className="field"><label>Currency</label>
-              <input value={currency} maxLength={3} onChange={(e) => setCurrency(e.target.value)} /></div>
+              <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                {CURRENCIES.map((c) => <option key={c.code} value={c.symbol}>{c.label}</option>)}
+              </select></div>
             <div className="field"><label>First child (optional)</label>
               <input value={firstChild} onChange={(e) => setFirstChild(e.target.value)} placeholder="e.g. Emma" /></div>
           </div>

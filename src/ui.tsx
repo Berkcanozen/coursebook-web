@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-export type Tab = 'home' | 'payments' | 'family';
+export type Tab = 'home' | 'calendar' | 'payments' | 'family';
 export type PayFilter = 'all' | 'unpaid' | 'paid';
 
 interface UiCtx {

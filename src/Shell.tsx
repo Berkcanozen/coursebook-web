@@ -3,6 +3,7 @@ import { useFamilyState } from './hooks';
 import { UiProvider, useUi, type Tab } from './ui';
 import { findCourse } from './lib/format';
 import { Home } from './screens/Home';
+import { Calendar } from './screens/Calendar';
 import { Payments } from './screens/Payments';
 import { Family } from './screens/Family';
 import { CourseDetail } from './screens/CourseDetail';
@@ -32,6 +33,8 @@ function ShellInner() {
           <CourseDetail state={state} courseId={ui.courseId} />
         ) : ui.tab === 'home' ? (
           <Home state={state} />
+        ) : ui.tab === 'calendar' ? (
+          <Calendar state={state} />
         ) : ui.tab === 'payments' ? (
           <Payments state={state} />
         ) : (
@@ -67,6 +70,7 @@ function Header() {
   }
   const titles: Record<Tab, [string, string]> = {
     home: ['Hello', state?.family || 'Family'],
+    calendar: ['Your', 'Calendar'],
     payments: ['Track', 'Payments'],
     family: ['Manage', 'Family'],
   };
@@ -86,7 +90,7 @@ function Header() {
 function Tabs() {
   const ui = useUi();
   const items: [Tab, string, string][] = [
-    ['home', '⌂', 'Home'], ['payments', '💳', 'Payments'], ['family', '👪', 'Family'],
+    ['home', '⌂', 'Home'], ['calendar', '📅', 'Calendar'], ['payments', '💳', 'Payments'], ['family', '👪', 'Family'],
   ];
   return (
     <nav className="tabs">
