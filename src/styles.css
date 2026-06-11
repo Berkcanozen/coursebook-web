@@ -307,3 +307,28 @@ nav.tabs::before{ content:"Coursebook"; display:none; }
 @media (min-width: 768px){
   /* the add-course button in the header still works; nothing to change */
 }
+
+/* ===== responsive refinements (contained app on a distinct backdrop) ===== */
+@media (min-width: 768px){
+  body{display:block; background:#E9E2D6;}
+  .app{
+    width:100%;
+    max-width:1180px;
+    margin:0 auto;
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    font-size:21px; padding:2px 12px 24px;
+  }
+  .brand::before{
+    content:"C";
+    width:30px; height:30px; border-radius:9px;
+    background:var(--accent); color:#fff;
+    font-family:var(--display); font-weight:600; font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+    flex:0 0 auto;
+  }
+  .course-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));}
+}

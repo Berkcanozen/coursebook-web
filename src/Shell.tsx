@@ -19,7 +19,7 @@ export function Shell() {
 
 function ShellInner() {
   const ui = useUi();
-  const { data: state, isLoading } = useFamilyState();
+  const { data: state, isLoading, error, refetch } = useFamilyState();
   const busy = useIsFetching() + useIsMutating() > 0;
 
   return (
@@ -27,7 +27,18 @@ function ShellInner() {
       <div className={'syncbar' + (busy ? ' on' : '')} />
       <Header />
       <main>
-        {isLoading || !state ? (
+        {isLoading ? (
+          <div className="center"><div className="spinner" /></div>
+        ) : error ? (
+          <div className="center" style={{ flexDirection: 'column', gap: 14, textAlign: 'center', padding: '0 30px' }}>
+            <div>
+              Couldn't load your data.
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 6 }}>{(error as Error).message}</div>
+              <div style={{ fontSize: 12, color: 'var(--faint)', marginTop: 6 }}>The free server may be waking up — this can take up to a minute.</div>
+            </div>
+            <button className="btn primary sm" onClick={() => refetch()}>Try again</button>
+          </div>
+        ) : !state ? (
           <div className="center"><div className="spinner" /></div>
         ) : ui.courseId ? (
           <CourseDetail state={state} courseId={ui.courseId} />
