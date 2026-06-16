@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { setAuthToken } from '../lib/api';
+import { supabase } from '../lib/supabase';
 
 interface AuthCtx {
   token: string | null;
@@ -14,20 +14,27 @@ export const useAuth = () => {
   return v;
 };
 
-const KEY = 'coursebook_token';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const t = localStorage.getItem(KEY);
-    if (t) { setAuthToken(t); setToken(t); }
-    setReady(true);
+    // Restore any existing session on load (Supabase persists it for us).
+    supabase.auth.getSession().then(({ data }) => {
+      setToken(data.session?.access_token ?? null);
+      setReady(true);
+    });
+    // Keep token in sync across login, logout, and silent token refreshes.
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signIn = (t: string) => { localStorage.setItem(KEY, t); setAuthToken(t); setToken(t); };
-  const signOut = () => { localStorage.removeItem(KEY); setAuthToken(null); setToken(null); };
+  // onAuthStateChange already sets the token after sign-in; setting it here too
+  // just avoids a brief flash before the listener fires.
+  const signIn = (t: string) => setToken(t);
+  const signOut = () => { supabase.auth.signOut(); setToken(null); };
 
   return <Ctx.Provider value={{ token, ready, signIn, signOut }}>{children}</Ctx.Provider>;
 }
