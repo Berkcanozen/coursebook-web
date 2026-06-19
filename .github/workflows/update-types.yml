@@ -1,0 +1,41 @@
+name: Update database types
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *' # nightly at 03:00 UTC
+
+permissions:
+  contents: write
+
+jobs:
+  update-types:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Generate types from the live schema
+        run: |
+          supabase gen types --lang=typescript \
+            --project-id "$PROJECT_REF" \
+            --schema public \
+            > src/lib/database.types.ts
+
+      - name: Commit if the schema changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/lib/database.types.ts
+          if git diff --cached --quiet; then
+            echo "No schema changes — types are already up to date."
+          else
+            git commit -m "chore: regenerate Supabase database types"
+            git push
+          fi
