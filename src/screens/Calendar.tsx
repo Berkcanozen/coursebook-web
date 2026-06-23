@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { FamilyState } from '../types';
 import { money, fmtDate, todayISO } from '../lib/format';
+import { useUi } from '../ui';
+import { SessionSheet } from '../sheets/SessionSheet';
 
 interface DaySession {
   id: string; date: string; amount: number; paid: boolean;
@@ -10,6 +12,7 @@ interface DaySession {
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function Calendar({ state }: { state: FamilyState }) {
+  const ui = useUi();
   const now = new Date();
   const [view, setView] = useState({ year: now.getFullYear(), month: now.getMonth() });
   const [selected, setSelected] = useState(todayISO());
@@ -55,59 +58,64 @@ export function Calendar({ state }: { state: FamilyState }) {
   const selList = byDate[selected] || [];
 
   return (
-    <>
-      <div className="cal-head">
-        <button className="iconbtn ghost" onClick={() => shift(-1)} aria-label="Previous month">‹</button>
-        <div className="cal-title">{monthLabel}</div>
-        <button className="iconbtn ghost" onClick={() => shift(1)} aria-label="Next month">›</button>
+    <div className="cal-layout">
+      <div className="cal-main">
+        <div className="cal-head">
+          <button className="iconbtn ghost" onClick={() => shift(-1)} aria-label="Previous month">‹</button>
+          <div className="cal-title">{monthLabel}</div>
+          <button className="iconbtn ghost" onClick={() => shift(1)} aria-label="Next month">›</button>
+        </div>
+
+        <div className="cal-grid cal-dow">
+          {DOW.map((d) => <div key={d} className="dow">{d}</div>)}
+        </div>
+
+        <div className="cal-grid">
+          {cells.map((iso, i) =>
+            iso === null ? (
+              <div key={i} className="cal-cell empty" />
+            ) : (
+              <button
+                key={i}
+                className={'cal-cell' + (iso === selected ? ' sel' : '') + (iso === t ? ' today' : '')}
+                onClick={() => setSelected(iso)}
+              >
+                <span className="num">{Number(iso.slice(-2))}</span>
+                {dotColor(iso) && <span className="cdot" style={{ background: dotColor(iso) as string }} />}
+              </button>
+            ),
+          )}
+        </div>
       </div>
 
-      <div className="cal-grid cal-dow">
-        {DOW.map((d) => <div key={d} className="dow">{d}</div>)}
-      </div>
+      <div className="cal-day">
+        <div className="sechead" style={{ marginTop: 20 }}>
+          <h2>{fmtDate(selected)}{selected === t ? ' · Today' : ''}</h2>
+          <button className="link" onClick={() => ui.openSheet(<SessionSheet state={state} currency={state.currency} initialDate={selected} />)}>＋ Add session</button>
+        </div>
 
-      <div className="cal-grid">
-        {cells.map((iso, i) =>
-          iso === null ? (
-            <div key={i} className="cal-cell empty" />
-          ) : (
-            <button
-              key={i}
-              className={'cal-cell' + (iso === selected ? ' sel' : '') + (iso === t ? ' today' : '')}
-              onClick={() => setSelected(iso)}
-            >
-              <span className="num">{Number(iso.slice(-2))}</span>
-              {dotColor(iso) && <span className="cdot" style={{ background: dotColor(iso) as string }} />}
-            </button>
-          ),
+        {selList.length === 0 ? (
+          <div className="empty" style={{ padding: 24 }}><p>No sessions on this day.</p></div>
+        ) : (
+          selList.map((s) => {
+            const over = !s.paid && s.date < t;
+            const cls = s.paid ? 'paid' : over ? 'over' : 'due';
+            const label = s.paid ? 'Paid' : over ? 'Overdue' : 'Unpaid';
+            return (
+              <div className="ses" key={s.id}>
+                <div className="dt">
+                  <span className="cdot" style={{ background: s.childColor, display: 'inline-block', marginRight: 7, verticalAlign: 'middle' }} />
+                  {s.courseName} <small>{s.childName}</small>
+                </div>
+                <div className="rt">
+                  <span className="amt">{money(state.currency, s.amount)}</span>
+                  <span className={'pill ' + cls}>{label}</span>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
-
-      <div className="sechead" style={{ marginTop: 20 }}>
-        <h2>{fmtDate(selected)}{selected === t ? ' · Today' : ''}</h2>
-      </div>
-
-      {selList.length === 0 ? (
-        <div className="empty" style={{ padding: 24 }}><p>No sessions on this day.</p></div>
-      ) : (
-        selList.map((s) => {
-          const over = !s.paid && s.date < t;
-          const cls = s.paid ? 'paid' : over ? 'over' : 'due';
-          const label = s.paid ? 'Paid' : over ? 'Overdue' : 'Unpaid';
-          return (
-            <div className="ses" key={s.id}>
-              <div className="dt">
-                <span className="cdot" style={{ background: s.childColor, display: 'inline-block', marginRight: 7, verticalAlign: 'middle' }} />
-                {s.courseName} <small>{s.childName}</small>
-              </div>
-              <div className="rt">
-                <span className="amt">{money(state.currency, s.amount)}</span>
-                <span className={'pill ' + cls}>{label}</span>
-              </div>
-            </div>
-          );
-        })
-      )}
-    </>
+    </div>
   );
 }
