@@ -1,6 +1,20 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 
+// A password-reset link redirects back with the session in the URL and
+// `type=recovery`. Supabase processes that URL as its client initializes and
+// emits a one-time PASSWORD_RECOVERY event — which can fire BEFORE this
+// provider's listener is attached, so relying on the event alone misses it and
+// the app just shows the home screen. To be robust we also read the recovery
+// intent straight from the URL here, at module load, before Supabase strips it.
+function readRecoveryFromUrl(): boolean {
+  if (typeof window === 'undefined') return false;
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(window.location.search);
+  return hash.get('type') === 'recovery' || query.get('type') === 'recovery';
+}
+const RECOVERY_FROM_URL = readRecoveryFromUrl();
+
 interface AuthCtx {
   token: string | null;
   email: string | null;
@@ -20,7 +34,7 @@ export const useAuth = () => {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
-  const [recovery, setRecovery] = useState(false);
+  const [recovery, setRecovery] = useState(RECOVERY_FROM_URL);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -31,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setReady(true);
     });
     // Keep token + email in sync across login, logout, and silent token refreshes.
-    // A reset-password link arrives as a PASSWORD_RECOVERY event with a temporary
-    // session — flag it so the app shows the "set new password" screen.
+    // Also catch PASSWORD_RECOVERY if the listener happens to be attached in time
+    // (the URL check above is the reliable path when it isn't).
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       setToken(session?.access_token ?? null);
       setEmail(session?.user?.email ?? null);
