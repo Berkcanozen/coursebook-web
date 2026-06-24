@@ -36,7 +36,7 @@ export function SessionSheet({
   const [date, setDate] = useState(initialDate ?? todayISO());
   const [amount, setAmount] = useState(startFee ? String(startFee) : '');
   const [note, setNote] = useState('');
-  const [paid, setPaid] = useState(true);
+  const [paid, setPaid] = useState(false);
 
   // Picking a different course refills the amount with that course's fee.
   function pickCourse(id: string) {
@@ -97,7 +97,10 @@ export function SessionSheet({
           <div className="sw" />
         </div>
       </div>
-      <div className="actions"><button className="btn primary" disabled={add.isPending || !courseId} onClick={save}>Add session</button></div>
+      <div className="actions">
+        <button className="btn" onClick={() => ui.closeSheet()}>Cancel</button>
+        <button className="btn primary" disabled={add.isPending || !courseId} onClick={save}>Add session</button>
+      </div>
     </>
   );
 }

@@ -1,7 +1,7 @@
 // src/lib/api.ts
 import { supabase } from './supabase';
 import type {
-  AuthResponse, Child, Course, CourseInput, FamilyState, FeeType, Session, SessionInput,
+  AuthResponse, Attendance, Child, Course, CourseInput, FamilyState, FeeType, Session, SessionInput,
 } from '../types';
 import type { Tables, TablesInsert, TablesUpdate } from './database.types';
 
@@ -38,6 +38,7 @@ const mapSession = (s: SessionRow): Session => ({
   amount: Number(s.amount) || 0, // numeric can arrive as a string; coerce
   paid: !!s.paid,
   note: s.note ?? '',
+  attendance: (s.attendance ?? 'unknown') as Attendance,
 });
 const mapCourse = (c: CourseRow): Course => ({
   id: c.id,

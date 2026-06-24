@@ -1,15 +1,27 @@
-import type { FamilyState } from '../types';
+import type { Attendance, FamilyState } from '../types';
 import { useUi } from '../ui';
-import { useAction, useTogglePaid } from '../hooks';
+import { useAction, useTogglePaid, useSetAttendance } from '../hooks';
 import { api } from '../lib/api';
 import { ICONS, ICON_TINT, FEELABEL } from '../lib/constants';
 import { fmtDate, latestSession, money, todayISO, findCourse } from '../lib/format';
 import { SessionSheet } from '../sheets/SessionSheet';
 
+// Tapping the attendance pill cycles through the states.
+const ATT_NEXT: Record<Attendance, Attendance> = {
+  unknown: 'present', present: 'absent', absent: 'cancelled', cancelled: 'unknown',
+};
+const ATT_VIEW: Record<Attendance, { label: string; cls: string }> = {
+  unknown: { label: 'Attendance', cls: 'none' },
+  present: { label: '✓ Present', cls: 'paid' },
+  absent: { label: '✗ Absent', cls: 'over' },
+  cancelled: { label: '⊘ Cancelled', cls: 'none' },
+};
+
 export function CourseDetail({ state, courseId }: { state: FamilyState; courseId: string }) {
   const ui = useUi();
   const found = findCourse(state, courseId);
-  const toggle = useTogglePaid(); // optimistic: flips instantly, reconciles in the background
+  const toggle = useTogglePaid();       // optimistic: flips instantly, reconciles in the background
+  const att = useSetAttendance();       // optimistic attendance setter
   const del = useAction((id: string) => api.deleteCourse(id));
 
   if (!found) { ui.back(); return null; }
@@ -55,9 +67,15 @@ export function CourseDetail({ state, courseId }: { state: FamilyState; courseId
             const over = !s.paid && s.date < todayISO();
             const cls = s.paid ? 'paid' : over ? 'over' : 'due';
             const label = s.paid ? 'Paid' : over ? 'Overdue' : 'Unpaid';
+            const av = ATT_VIEW[s.attendance];
             return (
               <div className="ses" key={s.id}>
-                <div className="dt">{fmtDate(s.date)}{s.note && <small>{s.note}</small>}</div>
+                <div className="dt">
+                  {fmtDate(s.date)}{s.note && <small>{s.note}</small>}
+                  <button className="togp att-pill" onClick={() => att.mutate({ id: s.id, attendance: ATT_NEXT[s.attendance] })}>
+                    <span className={'pill ' + av.cls}>{av.label}</span>
+                  </button>
+                </div>
                 <div className="rt">
                   <span className="amt">{money(state.currency, s.amount)}</span>
                   <button className="togp" onClick={() => toggle.mutate({ id: s.id, paid: !s.paid })}>

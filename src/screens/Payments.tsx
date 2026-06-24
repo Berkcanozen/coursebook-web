@@ -1,11 +1,13 @@
 import type { FamilyState } from '../types';
 import { useUi, type PayFilter } from '../ui';
+import { useTogglePaid } from '../hooks';
 import { fmtDate, fmtMonth, money, outstanding, paidThisYear, todayISO } from '../lib/format';
 
 interface Row { id: string; date: string; amount: number; paid: boolean; courseName: string; childName: string; }
 
 export function Payments({ state }: { state: FamilyState }) {
   const ui = useUi();
+  const toggle = useTogglePaid();
   const year = new Date().getFullYear();
 
   const all: Row[] = [];
@@ -56,7 +58,10 @@ export function Payments({ state }: { state: FamilyState }) {
                 return (
                   <div className="ses" key={s.id}>
                     <div className="dt">{s.courseName} <small>{s.childName} · {fmtDate(s.date)}</small></div>
-                    <div className="rt"><span className="amt">{money(state.currency, s.amount)}</span><span className={'pill ' + cls}>{label}</span></div>
+                    <div className="rt"><span className="amt">{money(state.currency, s.amount)}</span>
+                      <button className="togp" onClick={() => toggle.mutate({ id: s.id, paid: !s.paid })}>
+                        <span className={'pill ' + cls}>{label}</span>
+                      </button></div>
                   </div>
                 );
               })}

@@ -16,18 +16,21 @@ export function Calendar({ state }: { state: FamilyState }) {
   const now = new Date();
   const [view, setView] = useState({ year: now.getFullYear(), month: now.getMonth() });
   const [selected, setSelected] = useState(todayISO());
+  const [childFilter, setChildFilter] = useState<string | null>(null); // null = all children
   const t = todayISO();
 
-  // Index every logged session by its date.
+  // Index every logged session by its date (respecting the per-child filter).
   const byDate: Record<string, DaySession[]> = {};
-  state.children.forEach((c) =>
+  state.children.forEach((c) => {
+    if (childFilter && c.id !== childFilter) return;
     c.courses.forEach((co) =>
       co.sessions.forEach((s) => {
         (byDate[s.date] = byDate[s.date] || []).push({
           id: s.id, date: s.date, amount: s.amount, paid: s.paid,
           courseName: co.name, childName: c.name, childColor: c.color,
         });
-      })));
+      }));
+  });
 
   const monthStart = new Date(view.year, view.month, 1);
   const monthLabel = monthStart.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
@@ -60,6 +63,17 @@ export function Calendar({ state }: { state: FamilyState }) {
   return (
     <div className="cal-layout">
       <div className="cal-main">
+        {state.children.length > 1 && (
+          <div className="filterbar" style={{ flexWrap: 'wrap' }}>
+            <button className={'f' + (childFilter === null ? ' on' : '')} onClick={() => setChildFilter(null)}>All</button>
+            {state.children.map((c) => (
+              <button key={c.id} className={'f' + (childFilter === c.id ? ' on' : '')} onClick={() => setChildFilter(c.id)}>
+                <span className="cdot" style={{ background: c.color, display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginRight: 6, verticalAlign: 'middle' }} />
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="cal-head">
           <button className="iconbtn ghost" onClick={() => shift(-1)} aria-label="Previous month">‹</button>
           <div className="cal-title">{monthLabel}</div>
