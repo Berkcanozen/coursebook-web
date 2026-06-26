@@ -3,6 +3,32 @@ import type { Child, Course, FamilyState, Session } from '../types';
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 export const isoBack = (days: number) => { const d = new Date(); d.setDate(d.getDate() - days); return d.toISOString().slice(0, 10); };
 
+// Local-date helpers for recurring generation. We build the YYYY-MM-DD string
+// from local parts (not toISOString) so dates don't shift a day in +UTC zones.
+const localISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// ISO date `days` days ahead of today.
+export const isoFwd = (days: number) => { const d = new Date(); d.setDate(d.getDate() + days); return localISO(d); };
+
+// Every date between `start` and `end` (inclusive) whose weekday is in
+// `weekdays` (0 = Sun … 6 = Sat, matching Date.getDay()).
+export function genDates(start: string, end: string, weekdays: number[]): string[] {
+  if (!start || !end || weekdays.length === 0) return [];
+  const s = new Date(start + 'T00:00:00');
+  const e = new Date(end + 'T00:00:00');
+  if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) return [];
+  const out: string[] = [];
+  const d = new Date(s);
+  let guard = 0;
+  while (d <= e && guard < 1000) {
+    if (weekdays.includes(d.getDay())) out.push(localISO(d));
+    d.setDate(d.getDate() + 1);
+    guard++;
+  }
+  return out;
+}
+
 export const money = (currency: string, n: number) =>
   currency + Number(n || 0).toLocaleString('en-IE', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 

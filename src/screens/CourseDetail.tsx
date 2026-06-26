@@ -4,6 +4,7 @@ import { useTogglePaid, useSetAttendance, useDeleteCourse } from '../hooks';
 import { ICONS, ICON_TINT, FEELABEL } from '../lib/constants';
 import { fmtDate, latestSession, money, todayISO, findCourse } from '../lib/format';
 import { SessionSheet } from '../sheets/SessionSheet';
+import { GenerateSheet } from '../sheets/GenerateSheet';
 
 // Tapping the attendance pill cycles through the states.
 const ATT_NEXT: Record<Attendance, Attendance> = {
@@ -56,7 +57,10 @@ export function CourseDetail({ state, courseId }: { state: FamilyState; courseId
       <div className="detail-sessions">
         <div className="sechead">
           <h2>Recent sessions</h2>
-          <button className="link" onClick={() => ui.openSheet(<SessionSheet course={co} currency={state.currency} />)}>＋ Log session</button>
+          <span style={{ display: 'flex', gap: 14, alignItems: 'baseline' }}>
+            <button className="link" onClick={() => ui.openSheet(<GenerateSheet course={co} currency={state.currency} />)}>🔁 Generate</button>
+            <button className="link" onClick={() => ui.openSheet(<SessionSheet course={co} currency={state.currency} />)}>＋ Log session</button>
+          </span>
         </div>
 
         {sessions.length === 0 ? (

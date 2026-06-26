@@ -44,6 +44,12 @@ nav.tabs button.on{color:var(--accent);}
 .sechead{display:flex;align-items:baseline;justify-content:space-between;margin:6px 2px 12px;}
 .sechead h2{font-family:var(--display);font-weight:500;font-size:19px;margin:0;}
 .sechead .link{font-size:13px;color:var(--accent);font-weight:600;cursor:pointer;background:none;border:none;}
+
+/* Weekday chips (GenerateSheet recurring picker) */
+.wddays{display:flex;flex-wrap:wrap;gap:6px;}
+.wd{flex:0 0 auto;border:1px solid var(--line-2);background:var(--surface);color:var(--muted);border-radius:10px;padding:9px 13px;font-size:13px;font-weight:600;cursor:pointer;user-select:none;transition:.15s;}
+.wd:hover{border-color:var(--accent);color:var(--ink);}
+.wd.on{background:var(--accent-soft);border-color:var(--accent-soft);color:var(--accent-ink);}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:11px;cursor:pointer;transition:.15s;display:flex;gap:13px;align-items:center;text-align:left;width:100%;}
 .card:active{transform:scale(.99);background:var(--surface-2);}
 .thumb{flex:0 0 auto;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;}
