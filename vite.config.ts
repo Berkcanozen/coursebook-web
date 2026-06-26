@@ -3,20 +3,6 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  build: {
-    rollupOptions: {
-      output: {
-        // Split rarely-changing vendor code into its own chunks so that after a
-        // deploy, returning users only re-download the small app chunk (~11 KB)
-        // instead of the full ~125 KB bundle.
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          query: ['@tanstack/react-query'],
-          supabase: ['@supabase/supabase-js'],
-        },
-      },
-    },
-  },
   plugins: [
     react(),
     VitePWA({

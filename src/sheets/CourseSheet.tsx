@@ -1,15 +1,30 @@
-import { useState } from 'react';
-import type { Course, FeeType } from '../types';
+import { useState, type CSSProperties } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import type { Course, CourseInput, FeeType } from '../types';
 import { useUi } from '../ui';
-import { useAction } from '../hooks';
+import { useAction, useFamilyState } from '../hooks';
 import { api } from '../lib/api';
 import { ICONS } from '../lib/constants';
-import { useFamilyState } from '../hooks';
+import { todayISO } from '../lib/format';
 
 const FEE_TYPES: FeeType[] = ['session', 'month', 'term'];
 
+// Monday-first labels mapped to JS getDay() values (0 = Sun … 6 = Sat).
+const WEEKDAYS: { label: string; dow: number }[] = [
+  { label: 'Mon', dow: 1 }, { label: 'Tue', dow: 2 }, { label: 'Wed', dow: 3 },
+  { label: 'Thu', dow: 4 }, { label: 'Fri', dow: 5 }, { label: 'Sat', dow: 6 }, { label: 'Sun', dow: 0 },
+];
+
+const isoOf = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// A session being drafted alongside a brand-new course (amount kept as a string
+// while editing, parsed on save).
+interface DraftSession { date: string; amount: string; paid: boolean; }
+
 export function CourseSheet({ childId, existing }: { childId: string; existing?: Course }) {
   const ui = useUi();
+  const qc = useQueryClient();
   const { data: state } = useFamilyState();
   const cur = state?.currency ?? '€';
 
@@ -20,21 +35,90 @@ export function CourseSheet({ childId, existing }: { childId: string; existing?:
   const [fee, setFee] = useState(existing ? String(existing.fee) : '');
   const [feeType, setFeeType] = useState<FeeType>(existing?.feeType ?? 'session');
   const [icon, setIcon] = useState(existing?.icon ?? 'music');
+  const [sessions, setSessions] = useState<DraftSession[]>([]);
+  const [busy, setBusy] = useState(false);
 
-  const add = useAction((p: { childId: string }) =>
-    api.addCourse(p.childId, { name: name.trim(), instructor: instructor.trim(), location: location.trim(), schedule: schedule.trim(), fee: parseFloat(fee) || 0, feeType, icon }));
-  const upd = useAction((id: string) =>
-    api.updateCourse(id, { name: name.trim(), instructor: instructor.trim(), location: location.trim(), schedule: schedule.trim(), fee: parseFloat(fee) || 0, feeType, icon }));
-  const busy = add.isPending || upd.isPending;
+  // recurring builder
+  const [showRecur, setShowRecur] = useState(false);
+  const [recurDays, setRecurDays] = useState<number[]>([]);
+  const [recurFrom, setRecurFrom] = useState(todayISO());
+  const [recurTo, setRecurTo] = useState('');
+  const [recurAmount, setRecurAmount] = useState('');
+  const maxRecur = state?.maxRecurringSessions ?? 15;
+
+  const courseInput = (): CourseInput => ({
+    name: name.trim(), instructor: instructor.trim(), location: location.trim(),
+    schedule: schedule.trim(), fee: parseFloat(fee) || 0, feeType, icon,
+  });
+
+  const upd = useAction((id: string) => api.updateCourse(id, courseInput()));
+
+  // --- draft session helpers (add mode only)
+  const addSessionRow = () =>
+    setSessions((s) => [...s, { date: todayISO(), amount: fee || '', paid: false }]);
+  const setSession = (i: number, patch: Partial<DraftSession>) =>
+    setSessions((s) => s.map((row, j) => (j === i ? { ...row, ...patch } : row)));
+  const removeSession = (i: number) =>
+    setSessions((s) => s.filter((_, j) => j !== i));
+  const toggleDay = (dow: number) =>
+    setRecurDays((d) => (d.includes(dow) ? d.filter((x) => x !== dow) : [...d, dow]));
+
+  function generateRecurring() {
+    if (recurDays.length === 0) { alert('Pick at least one weekday.'); return; }
+    if (!recurFrom || !recurTo) { alert('Pick a start and end date.'); return; }
+    const amt = recurAmount.trim() === '' ? (fee || '') : recurAmount;
+    const start = new Date(recurFrom + 'T00:00:00');
+    const end = new Date(recurTo + 'T00:00:00');
+    if (end < start) { alert('The end date is before the start date.'); return; }
+    const out: DraftSession[] = [];
+    const d = new Date(start);
+    let guard = 0;
+    while (d <= end && guard < 800) {
+      if (recurDays.includes(d.getDay())) out.push({ date: isoOf(d), amount: amt, paid: false });
+      d.setDate(d.getDate() + 1);
+      guard++;
+    }
+    if (out.length === 0) { alert('No matching days in that range.'); return; }
+    const room = maxRecur - sessions.length;
+    if (out.length > room) {
+      alert(`That makes ${out.length} sessions, but the limit is ${maxRecur}` +
+        (sessions.length ? ` (you already have ${sessions.length}).` : '.') +
+        ' Please shorten the date range or pick fewer days.');
+      return;
+    }
+    setSessions((s) => [...s, ...out]);
+    setShowRecur(false);
+    setRecurDays([]);
+    setRecurTo('');
+  }
 
   async function save() {
     if (!name.trim()) { alert('Please enter a course name.'); return; }
+    setBusy(true);
     try {
-      if (existing) await upd.mutateAsync(existing.id);
-      else { const c = await add.mutateAsync({ childId }); ui.openCourse(c.id); }
+      if (existing) {
+        await upd.mutateAsync(existing.id);
+        ui.closeSheet();
+        return;
+      }
+      // Create the course, then any sessions drafted alongside it (one batched
+      // insert), then refresh once.
+      const course = await api.addCourse(childId, courseInput());
+      const rows = sessions.filter((d) => d.date)
+        .map((s) => ({ date: s.date, amount: parseFloat(s.amount) || 0, paid: s.paid, note: '' }));
+      if (rows.length) await api.addSessions(course.id, rows);
+      qc.invalidateQueries({ queryKey: ['state'] });
+      ui.openCourse(course.id);
       ui.closeSheet();
-    } catch (e) { alert((e as Error).message); }
+    } catch (e) {
+      alert((e as Error).message);
+      setBusy(false);
+    }
   }
+
+  const linkBtn: CSSProperties = {
+    background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: '4px 0',
+  };
 
   return (
     <>
@@ -65,7 +149,74 @@ export function CourseSheet({ childId, existing }: { childId: string; existing?:
           </div>
         </div>
       </div>
-      <div className="actions"><button className="btn primary" disabled={busy} onClick={save}>Save course</button></div>
+
+      {!existing && (
+        <div className="field">
+          <label>Sessions (optional)</label>
+          {sessions.length === 0 ? (
+            <div style={{ fontSize: 13, color: 'var(--muted)', margin: '2px 0 8px' }}>
+              Add sessions now — one at a time or a recurring run — or skip and add them later.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'var(--muted)', fontWeight: 600, margin: '2px 0 8px' }}>
+              <span>{sessions.length} session{sessions.length === 1 ? '' : 's'} ready</span>
+              <button type="button" style={{ ...linkBtn, padding: 0 }} onClick={() => setSessions([])}>Clear all</button>
+            </div>
+          )}
+
+          {sessions.map((s, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <input type="date" value={s.date} onChange={(e) => setSession(i, { date: e.target.value })}
+                style={{ flex: '1 1 auto', width: 'auto', minWidth: 0 }} />
+              <input type="number" inputMode="decimal" value={s.amount} placeholder="0"
+                onChange={(e) => setSession(i, { amount: e.target.value })}
+                style={{ flex: '0 0 84px', width: 84 }} />
+              <button type="button" onClick={() => setSession(i, { paid: !s.paid })}
+                className={'pill ' + (s.paid ? 'paid' : 'due')}
+                style={{ marginTop: 0, border: 'none', cursor: 'pointer', padding: '7px 11px', flex: '0 0 auto' }}>
+                {s.paid ? 'Paid' : 'Unpaid'}
+              </button>
+              <button type="button" onClick={() => removeSession(i)} className="iconbtn ghost" aria-label="Remove session"
+                style={{ width: 32, height: 32, fontSize: 15, flex: '0 0 auto' }}>✕</button>
+            </div>
+          ))}
+
+          <div style={{ display: 'flex', gap: 16 }}>
+            <button type="button" onClick={addSessionRow} style={linkBtn}>＋ Add one</button>
+            <button type="button" onClick={() => setShowRecur((v) => !v)} style={linkBtn}>
+              {showRecur ? 'Hide recurring' : '🔁 Add recurring'}
+            </button>
+          </div>
+
+          {showRecur && (
+            <div style={{ marginTop: 10, padding: 12, border: '1px solid var(--line-2)', borderRadius: 11, background: 'var(--surface-2)' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 8 }}>Repeat weekly on</div>
+              <div className="seg" style={{ flexWrap: 'wrap', gap: 6 }}>
+                {WEEKDAYS.map((w) => (
+                  <div key={w.dow} className={'o' + (recurDays.includes(w.dow) ? ' on' : '')}
+                    style={{ flex: '0 0 auto', padding: '8px 11px' }} onClick={() => toggleDay(w.dow)}>{w.label}</div>
+                ))}
+              </div>
+              <div className="row2" style={{ marginTop: 10 }}>
+                <div className="field" style={{ margin: 0 }}><label>From</label>
+                  <input type="date" value={recurFrom} onChange={(e) => setRecurFrom(e.target.value)} /></div>
+                <div className="field" style={{ margin: 0 }}><label>To</label>
+                  <input type="date" value={recurTo} onChange={(e) => setRecurTo(e.target.value)} /></div>
+              </div>
+              <div className="field" style={{ margin: '10px 0 0' }}><label>Amount per session ({cur})</label>
+                <input type="number" inputMode="decimal" value={recurAmount} placeholder={fee || '25'}
+                  onChange={(e) => setRecurAmount(e.target.value)} /></div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', margin: '8px 0 0' }}>Up to {maxRecur} sessions.</div>
+              <button type="button" className="btn primary sm" style={{ marginTop: 10 }} onClick={generateRecurring}>Generate sessions</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="actions">
+        <button className="btn" onClick={() => ui.closeSheet()}>Cancel</button>
+        <button className="btn primary" disabled={busy} onClick={save}>Save course</button>
+      </div>
     </>
   );
 }

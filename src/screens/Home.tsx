@@ -1,13 +1,10 @@
 import type { FamilyState } from '../types';
 import { useUi } from '../ui';
 import { ICONS, ICON_TINT, FEELABEL } from '../lib/constants';
-import {
-  courseStatus, latestSession, money, outstanding, paidThisYear, PILL,
-  overdueRefs, upcomingRefs, fmtDate,
-} from '../lib/format';
+import { courseStatus, latestSession, money, outstanding, paidThisYear, PILL } from '../lib/format';
 import { ChildSheet } from '../sheets/ChildSheet';
 import { CourseSheet } from '../sheets/CourseSheet';
-import { useAction, useToggleSessionPaid } from '../hooks';
+import { useAction } from '../hooks';
 import { api } from '../lib/api';
 import { CHILD_COLORS } from '../lib/constants';
 import { isoBack } from '../lib/format';
@@ -17,10 +14,6 @@ export function Home({ state }: { state: FamilyState }) {
   const active = state.children.find((c) => c.id === ui.activeChild) || state.children[0] || null;
   const year = new Date().getFullYear();
   const sample = useAction(loadSample);
-  const toggle = useToggleSessionPaid();
-
-  const overdue = overdueRefs(state);
-  const upcoming = upcomingRefs(state, 7);
 
   return (
     <>
@@ -38,44 +31,6 @@ export function Home({ state }: { state: FamilyState }) {
         <div className="stat due"><div className="lbl">Outstanding</div><div className="val">{money(state.currency, outstanding(state))}</div></div>
         <div className="stat paid"><div className="lbl">Paid in {year}</div><div className="val">{money(state.currency, paidThisYear(state))}</div></div>
       </div>
-
-      {(overdue.length > 0 || upcoming.length > 0) && (
-        <div className="attn">
-          {overdue.length > 0 && (
-            <div className="attn-group">
-              <h3 className="attn-h over">Needs attention</h3>
-              {overdue.map((r) => (
-                <div className="attn-row" key={r.session.id}>
-                  <span className="dot" style={{ background: r.childColor }} />
-                  <div className="attn-main">
-                    <div className="attn-nm">{r.course.name}</div>
-                    <div className="attn-sub">{r.childName} · overdue since {fmtDate(r.session.date)}</div>
-                  </div>
-                  <span className="attn-amt">{money(state.currency, r.session.amount)}</span>
-                  <button className="attn-pay" disabled={toggle.isPending}
-                    onClick={() => toggle.mutate({ id: r.session.id, paid: true })}>Pay</button>
-                </div>
-              ))}
-            </div>
-          )}
-          {upcoming.length > 0 && (
-            <div className="attn-group">
-              <h3 className="attn-h up">This week</h3>
-              {upcoming.map((r) => (
-                <div className="attn-row" key={r.session.id}>
-                  <span className="dot" style={{ background: r.childColor }} />
-                  <div className="attn-main">
-                    <div className="attn-nm">{r.course.name}</div>
-                    <div className="attn-sub">{r.childName} · {fmtDate(r.session.date)}</div>
-                  </div>
-                  <span className="attn-amt">{money(state.currency, r.session.amount)}</span>
-                  {!r.session.paid && <span className="pill due">Unpaid</span>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="sechead">
         <h2>{active ? `${active.name}'s courses` : 'Courses'}</h2>

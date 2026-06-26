@@ -55,7 +55,10 @@ function ShellInner() {
       <Tabs />
       {ui.sheet && (
         <div className="scrim" onClick={(e) => { if (e.target === e.currentTarget) ui.closeSheet(); }}>
-          <div className="sheet"><div className="grab" />{ui.sheet}</div>
+          <div className="sheet">
+            <button className="sheet-close" onClick={ui.closeSheet} aria-label="Close">✕</button>
+            <div className="grab" />{ui.sheet}
+          </div>
         </div>
       )}
     </div>

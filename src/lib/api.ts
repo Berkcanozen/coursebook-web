@@ -1,9 +1,9 @@
 // src/lib/api.ts
 import { supabase } from './supabase';
-import type { Database } from './database.types';
 import type {
-  AuthResponse, Child, Course, CourseInput, FamilyState, FeeType, Session, SessionInput,
+  AuthResponse, Attendance, Child, Course, CourseInput, FamilyState, FeeType, Session, SessionInput,
 } from '../types';
+import type { Tables, TablesInsert, TablesUpdate } from './database.types';
 
 // Kept so existing `import { ApiError }` (e.g. in AuthScreen) keeps working and
 // `e instanceof ApiError` continues to surface the real error message.
@@ -16,33 +16,29 @@ export class ApiError extends Error {
 // manually. Kept only so any leftover `import { setAuthToken }` still resolves.
 export const setAuthToken = (_t: string | null) => {};
 
-// Throw on a Supabase error; otherwise return the (possibly null) payload.
-function unwrap<T>(res: { data: T; error: { message: string } | null }): T {
+// Throw on a Supabase error, otherwise return the data payload.
+function ok<T>(res: { data: T; error: { message: string } | null }): T {
   if (res.error) throw new ApiError(400, res.error.message);
   return res.data;
 }
-// Same, but for single-row results that must exist after a write.
-function one<T>(res: { data: T | null; error: { message: string } | null }): NonNullable<T> {
-  if (res.error) throw new ApiError(400, res.error.message);
-  if (res.data == null) throw new ApiError(404, 'Not found.');
-  return res.data as NonNullable<T>;
-}
-
-// Row shapes returned by the nested selects below.
-type SessionRow = Database['public']['Tables']['sessions']['Row'];
-type CourseRow = Database['public']['Tables']['courses']['Row'] & { sessions?: SessionRow[] };
-type ChildRow = Database['public']['Tables']['children']['Row'] & { courses?: CourseRow[] };
 
 const byCreated = (a: { created_at?: string }, b: { created_at?: string }) =>
   (a.created_at ?? '').localeCompare(b.created_at ?? '');
+
+// --- Schema-derived row shapes. The nested variants describe the embedded
+// rows PostgREST returns for `select('*, courses(*, sessions(*))')`.
+type SessionRow = Tables<'sessions'>;
+type CourseRow = Tables<'courses'> & { sessions?: SessionRow[] | null };
+type ChildRow = Tables<'children'> & { courses?: CourseRow[] | null };
 
 // --- Postgres rows (snake_case) -> domain types (camelCase, what the UI reads)
 const mapSession = (s: SessionRow): Session => ({
   id: s.id,
   date: s.date,                  // 'YYYY-MM-DD'
-  amount: Number(s.amount) || 0, // numeric may arrive as a string; coerce
+  amount: Number(s.amount) || 0, // numeric can arrive as a string; coerce
   paid: !!s.paid,
   note: s.note ?? '',
+  attendance: (s.attendance ?? 'unknown') as Attendance,
 });
 const mapCourse = (c: CourseRow): Course => ({
   id: c.id,
@@ -51,7 +47,7 @@ const mapCourse = (c: CourseRow): Course => ({
   location: c.location ?? '',
   schedule: c.schedule ?? '',
   fee: Number(c.fee) || 0,
-  feeType: c.fee_type as FeeType,
+  feeType: c.fee_type as FeeType, // DB CHECK guarantees one of session/month/term
   icon: c.icon ?? 'other',
   sessions: (c.sessions ?? []).slice().sort(byCreated).map(mapSession),
 });
@@ -63,9 +59,8 @@ const mapChild = (ch: ChildRow): Child => ({
 });
 
 // --- course inputs (camelCase) -> row (snake_case); only set provided keys
-type CoursesUpdate = Database['public']['Tables']['courses']['Update'];
-const toCourseRow = (d: Partial<CourseInput>): CoursesUpdate => {
-  const r: CoursesUpdate = {};
+const toCourseRow = (d: Partial<CourseInput>): TablesUpdate<'courses'> => {
+  const r: TablesUpdate<'courses'> = {};
   if (d.name !== undefined) r.name = d.name;
   if (d.instructor !== undefined) r.instructor = d.instructor;
   if (d.location !== undefined) r.location = d.location;
@@ -76,7 +71,7 @@ const toCourseRow = (d: Partial<CourseInput>): CoursesUpdate => {
   return r;
 };
 
-const CHILD_TREE = '*, courses(*, sessions(*))';
+const CHILD_SELECT = '*, courses(*, sessions(*))';
 
 export const api = {
   register: async (
@@ -98,22 +93,38 @@ export const api = {
     if (error) throw new ApiError(400, error.message);
     const token = data.session?.access_token;
     if (!token) throw new ApiError(0, 'Sign-in failed.');
-    const profile = unwrap(
+    const profile = ok(
       await supabase.from('profiles').select('family_name, currency').maybeSingle(),
-    ); // unwrap
+    );
     return { token, family: profile?.family_name ?? '', currency: profile?.currency ?? '\u20BA' };
+  },
+
+  // Sends a reset email; the link returns the user to this app's origin in a
+  // temporary recovery session (handled by AuthProvider).
+  requestPasswordReset: async (email: string): Promise<void> => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) throw new ApiError(400, error.message);
+  },
+
+  // Sets a new password for the currently authenticated (or recovery) session.
+  updatePassword: async (password: string): Promise<void> => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw new ApiError(400, error.message);
   },
 
   getState: async (): Promise<FamilyState> => {
     const [profileRes, childrenRes] = await Promise.all([
-      supabase.from('profiles').select('family_name, currency').maybeSingle(),
-      supabase.from('children').select(CHILD_TREE).returns<ChildRow[]>(),
+      supabase.from('profiles').select('*').maybeSingle(),
+      supabase.from('children').select(CHILD_SELECT),
     ]);
-    const profile = unwrap(profileRes);
-    const children = unwrap(childrenRes) ?? [];
+    const profile = ok(profileRes);
+    const children = (ok(childrenRes) ?? []) as ChildRow[];
     return {
       family: profile?.family_name ?? '',
       currency: profile?.currency ?? '\u20BA',
+      maxRecurringSessions: profile?.max_recurring_sessions ?? 15,
       children: children.slice().sort(byCreated).map(mapChild),
     };
   },
@@ -123,63 +134,52 @@ export const api = {
   ): Promise<{ family: string; currency: string }> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new ApiError(401, 'Not signed in.');
-    const row = one(
+    const row = ok(
       await supabase.from('profiles')
         .update({ family_name: familyName, currency })
         .eq('id', user.id)
         .select('family_name, currency')
-        .single()
-        .returns<{ family_name: string; currency: string }>(),
-    );
+        .single(),
+    ) as Tables<'profiles'>;
     return { family: row.family_name, currency: row.currency };
   },
 
   addChild: async (name: string, color: string): Promise<Child> =>
-    mapChild(one(await supabase.from('children')
-      .insert({ name, color }).select(CHILD_TREE).single().returns<ChildRow>())),
+    mapChild(ok(await supabase.from('children')
+      .insert({ name, color }).select(CHILD_SELECT).single()) as ChildRow),
   updateChild: async (id: string, patch: Partial<{ name: string; color: string }>): Promise<Child> =>
-    mapChild(one(await supabase.from('children')
-      .update(patch).eq('id', id).select(CHILD_TREE).single().returns<ChildRow>())),
+    mapChild(ok(await supabase.from('children')
+      .update(patch).eq('id', id).select(CHILD_SELECT).single()) as ChildRow),
   deleteChild: async (id: string): Promise<void> => {
-    unwrap(await supabase.from('children').delete().eq('id', id));
+    ok(await supabase.from('children').delete().eq('id', id));
   },
 
-  addCourse: async (childId: string, data: CourseInput): Promise<Course> => {
-    const insert: Database['public']['Tables']['courses']['Insert'] = {
-      child_id: childId,
-      name: data.name,
-      instructor: data.instructor,
-      location: data.location,
-      schedule: data.schedule,
-      fee: data.fee,
-      fee_type: data.feeType,
-      icon: data.icon,
-    };
-    return mapCourse(one(await supabase.from('courses')
-      .insert(insert).select('*, sessions(*)').single().returns<CourseRow>()));
-  },
+  addCourse: async (childId: string, data: CourseInput): Promise<Course> =>
+    mapCourse(ok(await supabase.from('courses')
+      .insert({ child_id: childId, ...toCourseRow(data) } as TablesInsert<'courses'>)
+      .select('*, sessions(*)').single()) as CourseRow),
   updateCourse: async (id: string, patch: Partial<CourseInput>): Promise<Course> =>
-    mapCourse(one(await supabase.from('courses')
-      .update(toCourseRow(patch)).eq('id', id).select('*, sessions(*)').single().returns<CourseRow>())),
+    mapCourse(ok(await supabase.from('courses')
+      .update(toCourseRow(patch)).eq('id', id).select('*, sessions(*)').single()) as CourseRow),
   deleteCourse: async (id: string): Promise<void> => {
-    unwrap(await supabase.from('courses').delete().eq('id', id));
+    ok(await supabase.from('courses').delete().eq('id', id));
   },
 
-  addSessions: async (courseId: string, items: SessionInput[]): Promise<void> => {
-    if (items.length === 0) return;
-    const rows = items.map((d) => ({
+  addSession: async (courseId: string, data: SessionInput): Promise<Session> =>
+    mapSession(ok(await supabase.from('sessions')
+      .insert({ course_id: courseId, date: data.date, amount: data.amount, paid: data.paid, note: data.note })
+      .select().single()) as SessionRow),
+  // Batched insert — one round-trip for many sessions (e.g. a recurring run).
+  addSessions: async (courseId: string, data: SessionInput[]): Promise<void> => {
+    if (data.length === 0) return;
+    const rows: TablesInsert<'sessions'>[] = data.map((d) => ({
       course_id: courseId, date: d.date, amount: d.amount, paid: d.paid, note: d.note,
     }));
-    unwrap(await supabase.from('sessions').insert(rows));
+    ok(await supabase.from('sessions').insert(rows));
   },
-  addSession: async (courseId: string, data: SessionInput): Promise<Session> =>
-    mapSession(one(await supabase.from('sessions')
-      .insert({ course_id: courseId, date: data.date, amount: data.amount, paid: data.paid, note: data.note })
-      .select().single().returns<SessionRow>())),
   updateSession: async (id: string, patch: Partial<SessionInput>): Promise<Session> =>
-    mapSession(one(await supabase.from('sessions')
-      .update(patch).eq('id', id).select().single().returns<SessionRow>())),
+    mapSession(ok(await supabase.from('sessions').update(patch).eq('id', id).select().single()) as SessionRow),
   deleteSession: async (id: string): Promise<void> => {
-    unwrap(await supabase.from('sessions').delete().eq('id', id));
+    ok(await supabase.from('sessions').delete().eq('id', id));
   },
 };

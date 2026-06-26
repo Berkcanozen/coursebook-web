@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Child } from '../types';
 import { useUi } from '../ui';
-import { useAction } from '../hooks';
+import { useAction, useDeleteChild } from '../hooks';
 import { api } from '../lib/api';
 import { CHILD_COLORS } from '../lib/constants';
 
@@ -12,7 +12,7 @@ export function ChildSheet({ existing }: { existing?: Child }) {
 
   const add = useAction((p: { name: string; color: string }) => api.addChild(p.name, p.color));
   const upd = useAction((p: { id: string; name: string; color: string }) => api.updateChild(p.id, { name: p.name, color: p.color }));
-  const del = useAction((id: string) => api.deleteChild(id));
+  const del = useDeleteChild();
   const busy = add.isPending || upd.isPending || del.isPending;
 
   async function save() {
@@ -24,9 +24,10 @@ export function ChildSheet({ existing }: { existing?: Child }) {
     } catch (e) { alert((e as Error).message); }
   }
 
-  async function remove() {
+  function remove() {
     if (!existing || !confirm('Delete this child and all their courses?')) return;
-    try { await del.mutateAsync(existing.id); ui.closeSheet(); } catch (e) { alert((e as Error).message); }
+    del.mutate(existing.id, { onError: (e) => alert(e.message) });
+    ui.closeSheet();
   }
 
   return (
