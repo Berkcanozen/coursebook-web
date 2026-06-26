@@ -165,6 +165,13 @@ export const api = {
     unwrap(await supabase.from('courses').delete().eq('id', id));
   },
 
+  addSessions: async (courseId: string, items: SessionInput[]): Promise<void> => {
+    if (items.length === 0) return;
+    const rows = items.map((d) => ({
+      course_id: courseId, date: d.date, amount: d.amount, paid: d.paid, note: d.note,
+    }));
+    unwrap(await supabase.from('sessions').insert(rows));
+  },
   addSession: async (courseId: string, data: SessionInput): Promise<Session> =>
     mapSession(one(await supabase.from('sessions')
       .insert({ course_id: courseId, date: data.date, amount: data.amount, paid: data.paid, note: data.note })

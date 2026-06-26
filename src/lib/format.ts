@@ -44,3 +44,52 @@ export function findCourse(s: FamilyState, courseId: string): { child: Child; co
   }
   return null;
 }
+
+// ---- recurrence + attention helpers ----
+
+export const isoFwd = (days: number) => {
+  const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10);
+};
+
+// Local-safe ISO (avoids the UTC day-shift that toISOString can cause).
+const localISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Every date in [startISO, endISO] whose weekday is in `weekdays` (0=Sun..6=Sat).
+export function genDates(startISO: string, endISO: string, weekdays: number[]): string[] {
+  if (!startISO || !endISO || weekdays.length === 0) return [];
+  const start = new Date(startISO + 'T00:00:00');
+  const end = new Date(endISO + 'T00:00:00');
+  if (end < start) return [];
+  const out: string[] = [];
+  for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    if (weekdays.includes(d.getDay())) out.push(localISO(d));
+  }
+  return out;
+}
+
+export interface SessionRef { childName: string; childColor: string; course: Course; session: Session; }
+
+export function flatSessions(s: FamilyState): SessionRef[] {
+  const out: SessionRef[] = [];
+  s.children.forEach((ch) =>
+    ch.courses.forEach((co) =>
+      co.sessions.forEach((se) =>
+        out.push({ childName: ch.name, childColor: ch.color, course: co, session: se }))));
+  return out;
+}
+
+export function overdueRefs(s: FamilyState): SessionRef[] {
+  const t = todayISO();
+  return flatSessions(s)
+    .filter((r) => !r.session.paid && r.session.date < t)
+    .sort((a, b) => a.session.date.localeCompare(b.session.date));
+}
+
+export function upcomingRefs(s: FamilyState, days = 7): SessionRef[] {
+  const t = todayISO();
+  const end = isoFwd(days);
+  return flatSessions(s)
+    .filter((r) => r.session.date >= t && r.session.date <= end)
+    .sort((a, b) => a.session.date.localeCompare(b.session.date));
+}

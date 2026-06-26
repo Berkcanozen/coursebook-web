@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { ICONS, ICON_TINT, FEELABEL } from '../lib/constants';
 import { fmtDate, latestSession, money, todayISO, findCourse } from '../lib/format';
 import { SessionSheet } from '../sheets/SessionSheet';
+import { GenerateSheet } from '../sheets/GenerateSheet';
 
 export function CourseDetail({ state, courseId }: { state: FamilyState; courseId: string }) {
   const ui = useUi();
@@ -42,7 +43,10 @@ export function CourseDetail({ state, courseId }: { state: FamilyState; courseId
 
       <div className="sechead">
         <h2>Recent sessions</h2>
-        <button className="link" onClick={() => ui.openSheet(<SessionSheet course={co} currency={state.currency} />)}>＋ Log session</button>
+        <div style={{ display: 'flex', gap: 14 }}>
+          <button className="link" onClick={() => ui.openSheet(<GenerateSheet course={co} currency={state.currency} />)}>⟳ Generate</button>
+          <button className="link" onClick={() => ui.openSheet(<SessionSheet course={co} currency={state.currency} />)}>＋ Log session</button>
+        </div>
       </div>
 
       {sessions.length === 0 ? (
