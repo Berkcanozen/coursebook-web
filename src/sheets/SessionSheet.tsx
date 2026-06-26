@@ -1,85 +1,26 @@
-import { useMemo, useState } from 'react';
-import type { Course, FamilyState } from '../types';
+import { useState } from 'react';
+import type { Course } from '../types';
 import { useUi } from '../ui';
 import { useAction } from '../hooks';
 import { api } from '../lib/api';
 import { todayISO } from '../lib/format';
 
-interface PickCourse { id: string; childName: string; name: string; fee: number; }
-
-// Two modes:
-//  - course-scoped (opened from a course's detail): pass `course`.
-//  - calendar (opened from a day): pass `state` + `initialDate`; the sheet then
-//    shows a course picker so the session has something to attach to.
-export function SessionSheet({
-  course, state, currency, initialDate,
-}: {
-  course?: Course;
-  state?: FamilyState;
-  currency: string;
-  initialDate?: string;
-}) {
+export function SessionSheet({ course, currency }: { course: Course; currency: string }) {
   const ui = useUi();
-
-  const pickable = useMemo<PickCourse[]>(() => {
-    if (course || !state) return [];
-    const list: PickCourse[] = [];
-    state.children.forEach((ch) =>
-      ch.courses.forEach((co) =>
-        list.push({ id: co.id, childName: ch.name, name: co.name, fee: co.fee })));
-    return list;
-  }, [course, state]);
-
-  const [courseId, setCourseId] = useState(course?.id ?? pickable[0]?.id ?? '');
-  const startFee = course?.fee ?? pickable[0]?.fee;
-
-  const [date, setDate] = useState(initialDate ?? todayISO());
-  const [amount, setAmount] = useState(startFee ? String(startFee) : '');
+  const [date, setDate] = useState(todayISO());
+  const [amount, setAmount] = useState(course.fee ? String(course.fee) : '');
   const [note, setNote] = useState('');
-  const [paid, setPaid] = useState(false);
+  const [paid, setPaid] = useState(true);
 
-  // Picking a different course refills the amount with that course's fee.
-  function pickCourse(id: string) {
-    setCourseId(id);
-    const fee = pickable.find((c) => c.id === id)?.fee;
-    setAmount(fee ? String(fee) : '');
-  }
-
-  const add = useAction(() =>
-    api.addSession(courseId, { date, amount: parseFloat(amount) || 0, paid, note: note.trim() }));
+  const add = useAction(() => api.addSession(course.id, { date, amount: parseFloat(amount) || 0, paid, note: note.trim() }));
 
   async function save() {
-    if (!courseId) return;
     try { await add.mutateAsync(); ui.closeSheet(); } catch (e) { alert((e as Error).message); }
-  }
-
-  // Calendar mode but nothing to attach a session to yet.
-  if (!course && state && pickable.length === 0) {
-    return (
-      <>
-        <h2>Log a session</h2>
-        <div className="empty" style={{ padding: 20 }}>
-          <p>Add a child and a course first — then you can log sessions straight from the calendar.</p>
-        </div>
-        <div className="actions"><button className="btn" onClick={() => ui.closeSheet()}>Close</button></div>
-      </>
-    );
   }
 
   return (
     <>
       <h2>Log a session</h2>
-
-      {!course && pickable.length > 0 && (
-        <div className="field"><label>Course</label>
-          <select value={courseId} onChange={(e) => pickCourse(e.target.value)}>
-            {pickable.map((c) => (
-              <option key={c.id} value={c.id}>{c.childName} · {c.name}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
       <div className="row2">
         <div className="field"><label>Date</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
@@ -97,10 +38,7 @@ export function SessionSheet({
           <div className="sw" />
         </div>
       </div>
-      <div className="actions">
-        <button className="btn" onClick={() => ui.closeSheet()}>Cancel</button>
-        <button className="btn primary" disabled={add.isPending || !courseId} onClick={save}>Add session</button>
-      </div>
+      <div className="actions"><button className="btn primary" disabled={add.isPending} onClick={save}>Add session</button></div>
     </>
   );
 }

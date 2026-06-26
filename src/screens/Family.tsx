@@ -7,7 +7,7 @@ import { SettingsSheet } from '../sheets/SettingsSheet';
 
 export function Family({ state }: { state: FamilyState }) {
   const ui = useUi();
-  const { signOut, email } = useAuth();
+  const { signOut } = useAuth();
 
   return (
     <>
@@ -33,10 +33,6 @@ export function Family({ state }: { state: FamilyState }) {
 
       <div style={{ marginTop: 28, fontSize: 12, color: 'var(--muted)', fontWeight: 600, padding: '0 2px 8px' }}>ACCOUNT</div>
       <div className="meta">
-        <div className="r">
-          <span className="i">📧</span><span className="k" style={{ textAlign: 'left' }}>Signed in as</span>
-          <span className="v" style={{ wordBreak: 'break-all' }}>{email ?? '—'}</span>
-        </div>
         <button className="r" style={{ cursor: 'pointer', width: '100%', background: 'none', border: 'none', borderBottom: '1px solid var(--line)' }}
           onClick={() => ui.openSheet(<SettingsSheet family={state.family} currency={state.currency} />)}>
           <span className="i">🏷️</span><span className="k" style={{ textAlign: 'left' }}>Family name</span><span className="v">{state.family || '—'}</span>

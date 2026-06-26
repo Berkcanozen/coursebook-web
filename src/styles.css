@@ -148,32 +148,13 @@ nav.tabs button.on{color:var(--accent);}
 .cdot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;}
 .cal-cell.sel .cdot{box-shadow:0 0 0 1.5px #fff;}
 
-/* Close button shared by every sheet (sticky so it stays reachable while the
-   sheet scrolls). */
-.sheet{position:relative;}
-.sheet-close{position:sticky;top:0;z-index:3;display:block;margin:0 0 -28px auto;width:32px;height:32px;border:none;border-radius:50%;background:var(--bg);color:var(--muted);font-size:14px;cursor:pointer;}
-.sheet-close:hover{background:var(--surface-2);color:var(--ink);}
+/* brand label is hidden on mobile; it becomes the sidebar title on desktop */
+.brand{display:none;}
+.course-grid{display:block;}
 
-/* Attendance pill sits on its own line under the session date. */
-.att-pill{display:block;margin-top:5px;}
-
-
-/* ============================================================
-   Mobile-base helpers used by the responsive layer below.
-   ============================================================ */
-.brand{ display:none; }            /* sidebar brand: hidden on mobile */
-.course-grid{ display:block; }     /* course list: single column on mobile */
-.detail, .detail-info, .detail-sessions,
-.cal-layout, .cal-main, .cal-day{ display:block; }  /* inert wrappers on mobile */
-
-/* ============================================================
-   Wide-screen / desktop layout (>=768px)
-   The phone-width app becomes a two-pane shell: a left sidebar
-   nav + a centered content column. Everything above is the
-   mobile base and is intentionally left untouched.
-   ============================================================ */
-@media (min-width: 768px){
-  body{ display:block; background:#E9E2D6; }
+/* ===== Desktop / tablet layout (>= 768px) ===== */
+@media (min-width:768px){
+  body{display:block;background:#E9E2D6;}
 
   .app{
     width:100%;
@@ -181,38 +162,15 @@ nav.tabs button.on{color:var(--accent);}
     height:100dvh;
     margin:0 auto;
     display:grid;
-    grid-template-columns:240px minmax(0,1fr);
+    grid-template-columns:244px minmax(0,1fr);
     grid-template-rows:auto 1fr;
-    grid-template-areas:
-      "side header"
-      "side main";
-    overflow:hidden;
+    grid-template-areas:"side header" "side main";
     border-left:1px solid var(--line);
     border-right:1px solid var(--line);
     box-shadow:0 0 80px rgba(43,37,32,.10);
   }
 
-  /* ---- Auth screen: a single centered card, not the two-pane shell ---- */
-  .app.app--auth{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    max-width:none;
-    border:none;
-    box-shadow:none;
-  }
-  .app--auth .auth{
-    flex:0 0 auto;
-    width:100%;
-    max-width:400px;
-    padding:40px 34px 34px;
-    background:var(--surface);
-    border:1px solid var(--line);
-    border-radius:var(--radius-lg);
-    box-shadow:0 18px 50px rgba(43,37,32,.12);
-  }
-
-  /* ---- bottom tab bar -> left sidebar ---- */
+  /* bottom tab bar -> left sidebar */
   nav.tabs{
     grid-area:side;
     position:static;
@@ -220,104 +178,64 @@ nav.tabs button.on{color:var(--accent);}
     align-items:stretch;
     justify-content:flex-start;
     gap:6px;
+    padding:24px 16px;
     background:var(--surface-2);
     border-top:none;
     border-right:1px solid var(--line);
     backdrop-filter:none;
-    padding:26px 16px;
   }
+  nav.tabs button{
+    flex:0 0 auto;
+    flex-direction:row;
+    justify-content:flex-start;
+    gap:13px;
+    padding:11px 14px;
+    border-radius:12px;
+    color:var(--muted);
+    transition:.15s;
+  }
+  nav.tabs button .i{font-size:20px;}
+  nav.tabs button span{font-size:14.5px;font-weight:600;}
+  nav.tabs button:hover{background:rgba(43,37,32,.045);}
+  nav.tabs button.on{background:var(--accent-soft);color:var(--accent-ink);}
+
   .brand{
-    display:flex; align-items:center; gap:10px;
-    font-family:var(--display); font-weight:600; font-size:21px;
-    letter-spacing:-.02em; color:var(--ink);
-    padding:2px 12px 24px;
+    display:flex;align-items:center;gap:10px;
+    font-family:var(--display);font-weight:600;font-size:21px;
+    letter-spacing:-.01em;color:var(--ink);padding:2px 12px 22px;
   }
   .brand::before{
     content:"C";
-    width:30px; height:30px; border-radius:9px;
-    background:var(--accent); color:#fff;
-    font-family:var(--display); font-weight:600; font-size:18px;
-    display:flex; align-items:center; justify-content:center;
-    flex:0 0 auto;
+    width:30px;height:30px;border-radius:9px;flex:0 0 auto;
+    background:var(--accent);color:#fff;font-size:18px;
+    display:flex;align-items:center;justify-content:center;
   }
-  nav.tabs button{
-    flex:0 0 auto; flex-direction:row; justify-content:flex-start;
-    gap:13px; padding:12px 14px; border-radius:12px; color:var(--muted);
-    transition:background .15s, color .15s;
-  }
-  nav.tabs button:hover{ background:var(--surface); }
-  nav.tabs button .i{ font-size:20px; }
-  nav.tabs button span{ font-size:14.5px; font-weight:600; }
-  nav.tabs button.on{ background:var(--accent-soft); color:var(--accent-ink); }
 
-  /* ---- header + content ---- */
-  header.bar{ grid-area:header; padding:30px 44px 16px; }
-  header.bar h1{ font-size:28px; }
-  main{ grid-area:main; padding:14px 44px 56px; min-height:0; }
+  header.bar{grid-area:header;padding:28px 44px 14px;}
+  header.bar h1{font-size:28px;}
 
-  /* Course list flows into responsive columns; single-column reading
-     content is capped so lines don't stretch uncomfortably wide. */
+  main{grid-area:main;padding:12px 44px 56px;min-height:0;}
+  /* a comfortable centred reading column; all blocks share its alignment */
+  main > *{width:100%;max-width:860px;margin-left:auto;margin-right:auto;}
+
+  /* use the extra width: course cards flow into columns */
   .course-grid{
     display:grid;
     grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
     gap:12px;
     align-items:start;
   }
-  .course-grid .card{ margin-bottom:0; }
+  .course-grid .card{margin-bottom:0;}
 
-  .chips, .filterbar, .sechead, .pay-group, .empty{ max-width:760px; }
-  .summary{ max-width:520px; }
-
-  /* ---- Course detail: info column beside the sessions column ---- */
-  .detail{
-    display:grid;
-    grid-template-columns:minmax(0,340px) minmax(0,1fr);
-    grid-template-areas:
-      "head head"
-      "info sessions";
-    column-gap:44px;
-    align-items:start;
-    max-width:940px;
-  }
-  .detail .ch-head{ grid-area:head; }
-  .detail-info{ grid-area:info; position:sticky; top:0; }
-  .detail-sessions{ grid-area:sessions; min-width:0; }
-  .detail-info .hero{ margin-bottom:14px; }
-  .detail-info .meta{ margin-bottom:0; }
-  .detail-sessions .sechead{ margin-top:0; }
-  .detail-delete{ width:auto; }
-
-  /* ---- Calendar: month grid beside the selected day's sessions ---- */
-  .cal-layout{
-    display:grid;
-    grid-template-columns:minmax(0,1fr) minmax(300px,380px);
-    column-gap:44px;
-    align-items:start;
-    max-width:940px;
-  }
-  .cal-main{ min-width:0; }
-  .cal-day{ min-width:0; }
-  .cal-day .sechead{ margin-top:0 !important; }
-
-  /* ---- modal dialog instead of a bottom sheet ---- */
-  .scrim{ align-items:center; }
+  /* modals become a centred dialog instead of a bottom sheet */
+  .scrim{align-items:center;}
   .sheet{
-    width:100%;
     max-width:460px;
     border-radius:22px;
     max-height:88dvh;
     animation:pop .2s cubic-bezier(.2,.8,.2,1);
   }
-  .sheet .grab{ display:none; }
+  .sheet .grab{display:none;}
 }
 
-@keyframes pop{ from{ transform:scale(.96); opacity:0 } to{ transform:scale(1); opacity:1 } }
-
-/* Roomier course columns on very wide screens. */
-@media (min-width: 1100px){
-  .course-grid{ grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); }
-}
-
-@media (prefers-reduced-motion: reduce){
-  .sheet, .scrim{ animation:none; }
-}
+@keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
